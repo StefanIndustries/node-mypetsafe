@@ -1,0 +1,31 @@
+{
+  "name": "mypetsafe",
+  "version": "1.0.0",
+  "description": "",
+  "author": "Stefan Simon",
+  "main": "lib/mypetsafe.js",
+  "types": "lib/mypetsafe.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "npx eslint ./src",
+    "lint-fix": "npx eslint ./src --fix",
+    "start": "tsx watch --env-file=.env ./app.ts"
+  },
+  "files": [
+    "lib/**/*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/StefanIndustries/node-mypetsafe.git"
+  },
+  "dependencies": {
+    "axios": "^1.9.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4",
+    "@types/node": "^22.15.3",
+    "eslint": "^9.26.0",
+    "typescript-eslint": "^8.31.1",
+    "typescript": "^5.8.3"
+  }
+}
