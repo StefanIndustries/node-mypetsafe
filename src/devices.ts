@@ -59,6 +59,7 @@ export class DeviceSmartFeed {
         if (forceUpdate) {
             await this.updateData();
         } else {
+            // @ts-ignore
             this.data.settings[setting] = value;
         }
     }
@@ -72,6 +73,7 @@ export class DeviceSmartFeed {
 
     async getLastFeeding(): Promise<any | null> {
         const messages = await this.getMessagesSince();
+        // @ts-ignore
         return messages.find(message => message.message_type === "FEED_DONE") || null;
     }
 
@@ -304,6 +306,7 @@ export class DeviceScoopfree {
         if (forceUpdate) {
             await this.updateData();
         } else {
+            // @ts-ignore
             this.data[setting] = value;
         }
     }
