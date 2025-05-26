@@ -3,9 +3,9 @@ import {PetSafeClient} from "./src/mypetsafe-client";
 async function main() {
 
     // if tokens are known, pass them to the petsafeclient constructor, otherwise, only use email and request code
-    const client = new PetSafeClient('test@test.nl');
+    const client = new PetSafeClient('sjsimon1996@gmail.com');
     await client.requestCode(); // sends email to request code. pass code to the requestTokensFromCode method
-    const code = '123456';
+    const code = '225983';
     await client.requestTokensFromCode(code);
 
     const feeders = await client.getFeeders();

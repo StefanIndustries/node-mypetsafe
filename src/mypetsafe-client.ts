@@ -134,7 +134,10 @@ export class PetSafeClient {
         if (!this.cognitoClient) {
             this.cognitoClient = new CognitoIdentityProviderClient({
                 region: this.PETSAFE_REGION,
-                credentials: undefined // Unsigned
+                credentials: () => Promise.resolve({
+                    accessKeyId: "",
+                    secretAccessKey: ""
+                })
             });
         }
     }
