@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse } from "axios";
 import {DeviceScoopfree, DeviceSmartFeed} from "./devices";
+import {EventEmitter} from "node:events";
 
 export class PetSafeClient {
     private idToken?: string;
@@ -17,6 +18,8 @@ export class PetSafeClient {
     private readonly PETSAFE_REGION = 'us-east-1';
     private readonly COGNITO_URL = `https://cognito-idp.${this.PETSAFE_REGION}.amazonaws.com/`;
 
+    private eventEmitter: EventEmitter;
+
     constructor(
         email: string,
         idToken?: string,
@@ -32,6 +35,22 @@ export class PetSafeClient {
 
         this.ax = axios.create({
             baseURL: this.PETSAFE_API_BASE
+        });
+
+        this.eventEmitter = new EventEmitter();
+    }
+
+    onTokenRefreshed(listener: (tokens: { idToken: string; accessToken: string; refreshToken: string | undefined }) => void): void {
+        this.eventEmitter.on("tokenRefreshed", listener);
+    }
+
+    private emitTokenRefreshed(): void {
+        if (!this.idToken || !this.accessToken) return;
+
+        this.eventEmitter.emit("tokenRefreshed", {
+            idToken: this.idToken,
+            accessToken: this.accessToken,
+            refreshToken: this.refreshToken,
         });
     }
 
@@ -97,6 +116,7 @@ export class PetSafeClient {
         this.accessToken = response.data.AuthenticationResult?.AccessToken;
         this.refreshToken = response.data.AuthenticationResult?.RefreshToken;
         this.tokenExpiresTime = Date.now() + response.data.AuthenticationResult?.ExpiresIn * 1000;
+        this.emitTokenRefreshed();
     }
 
     async refreshTokens() {
@@ -129,6 +149,8 @@ export class PetSafeClient {
                 this.refreshToken = refresh_token;
             }
             this.tokenExpiresTime = Date.now() + expires_in * 1000;
+
+            this.emitTokenRefreshed();
         } else {
             throw new Error("Failed to refresh tokens");
         }
