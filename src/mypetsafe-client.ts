@@ -1,10 +1,4 @@
 import axios, { AxiosInstance, AxiosResponse } from "axios";
-import {
-    ChallengeNameType,
-    CognitoIdentityProviderClient,
-    InitiateAuthCommand,
-    RespondToAuthChallengeCommand
-} from "@aws-sdk/client-cognito-identity-provider";
 import {DeviceScoopfree, DeviceSmartFeed} from "./devices";
 
 export class PetSafeClient {
@@ -15,13 +9,13 @@ export class PetSafeClient {
     private session?: string;
     private username?: string;
     private tokenExpiresTime: number = 0;
-    private challengeName?: ChallengeNameType;
+    private challengeName?: string;
     private readonly ax: AxiosInstance;
-    private cognitoClient?: CognitoIdentityProviderClient;
 
     private readonly PETSAFE_API_BASE = 'https://platform.cloud.petsafe.net';
     private readonly PETSAFE_CLIENT_ID = '18hpp04puqmgf5nc6o474lcp2g';
     private readonly PETSAFE_REGION = 'us-east-1';
+    private readonly COGNITO_URL = `https://cognito-idp.${this.PETSAFE_REGION}.amazonaws.com/`;
 
     constructor(
         email: string,
@@ -51,94 +45,92 @@ export class PetSafeClient {
         return response.data.data.map((litterboxData: any) => new DeviceScoopfree(this, litterboxData));
     }
 
-    async requestCode(): Promise<void> {
-        await this.getCognitoClient();
-
-        try {
-            const command = new InitiateAuthCommand({
+    async requestCode() {
+        const response = await axios.post(
+            this.COGNITO_URL,
+            {
                 AuthFlow: "CUSTOM_AUTH",
                 ClientId: this.PETSAFE_CLIENT_ID,
                 AuthParameters: {
                     USERNAME: this.email,
                     AuthFlow: "CUSTOM_CHALLENGE"
-                }
-            });
-
-            const response = await this.cognitoClient?.send(command);
-
-            if (response) {
-                this.challengeName = response.ChallengeName;
-                this.session = response.Session;
-                this.username = response.ChallengeParameters?.USERNAME;
+                },
+            },
+            {
+                headers: {
+                    "Content-Type": "application/x-amz-json-1.1",
+                    "X-Amz-Target": "AWSCognitoIdentityProviderService.InitiateAuth",
+                },
             }
-        } catch (error) {
-            throw new InvalidUserException();
-        }
+        );
+
+        this.session = response.data.Session;
+        this.challengeName = response.data.ChallengeName;
+        this.username = response.data.ChallengeParameters?.USERNAME ?? this.email;
     }
 
-    async requestTokensFromCode(code: string): Promise<void> {
+    async requestTokensFromCode(code: string) {
         if (!this.challengeName || !this.session || !this.username) {
             throw new Error("Must request code first");
         }
 
-        const command = new RespondToAuthChallengeCommand({
-            ClientId: this.PETSAFE_CLIENT_ID,
-            ChallengeName: this.challengeName,
-            Session: this.session,
-            ChallengeResponses: {
-                ANSWER: code.replace(/\D/g, ""),
-                USERNAME: this.username
+        const response = await axios.post(
+            this.COGNITO_URL,
+            {
+                ChallengeName: "CUSTOM_CHALLENGE",
+                ClientId: this.PETSAFE_CLIENT_ID,
+                Session: this.session,
+                ChallengeResponses: {
+                    USERNAME: this.email,
+                    ANSWER: code.replace(/\D/g, ""),
+                },
+            },
+            {
+                headers: {
+                    "Content-Type": "application/x-amz-json-1.1",
+                    "X-Amz-Target": "AWSCognitoIdentityProviderService.RespondToAuthChallenge",
+                },
             }
-        });
+        );
 
-        const response = await this.cognitoClient?.send(command);
-
-        if (!response?.AuthenticationResult) {
-            throw new InvalidCodeException("Invalid confirmation code");
-        }
-
-        this.idToken = response.AuthenticationResult.IdToken;
-        this.accessToken = response.AuthenticationResult.AccessToken;
-        this.refreshToken = response.AuthenticationResult.RefreshToken;
-        this.tokenExpiresTime = Date.now() + (response.AuthenticationResult.ExpiresIn || 0) * 1000;
+        this.idToken = response.data.AuthenticationResult?.IdToken;
+        this.accessToken = response.data.AuthenticationResult?.AccessToken;
+        this.refreshToken = response.data.AuthenticationResult?.RefreshToken;
+        this.tokenExpiresTime = Date.now() + response.data.AuthenticationResult?.ExpiresIn * 1000;
     }
 
-    private async refreshTokens(): Promise<void> {
+    async refreshTokens() {
         if (!this.refreshToken) {
             throw new Error("No refresh token available");
         }
-
-        const command = new InitiateAuthCommand({
-            AuthFlow: "REFRESH_TOKEN_AUTH",
-            ClientId: this.PETSAFE_CLIENT_ID,
-            AuthParameters: {
-                REFRESH_TOKEN: this.refreshToken
+        const response = await axios.post(
+            this.COGNITO_URL,
+            {
+                AuthFlow: "REFRESH_TOKEN_AUTH",
+                ClientId: this.PETSAFE_CLIENT_ID,
+                AuthParameters: {
+                    REFRESH_TOKEN: this.refreshToken,
+                },
+            },
+            {
+                headers: {
+                    "Content-Type": "application/x-amz-json-1.1",
+                    "X-Amz-Target": "AWSCognitoIdentityProviderService.InitiateAuth",
+                },
             }
-        });
+        );
 
-        const response = await this.cognitoClient?.send(command);
+        if (response.data) {
+            const { id_token, access_token, refresh_token, expires_in } = response.data;
 
-        if (!response?.AuthenticationResult) {
+            this.idToken = id_token;
+            this.accessToken = access_token;
+            if (refresh_token) {
+                this.refreshToken = refresh_token;
+            }
+            this.tokenExpiresTime = Date.now() + expires_in * 1000;
+        } else {
             throw new Error("Failed to refresh tokens");
-        }
-
-        this.idToken = response.AuthenticationResult.IdToken;
-        this.accessToken = response.AuthenticationResult.AccessToken;
-        if (response.AuthenticationResult.RefreshToken) {
-            this.refreshToken = response.AuthenticationResult.RefreshToken;
-        }
-        this.tokenExpiresTime = Date.now() + (response.AuthenticationResult.ExpiresIn || 0) * 1000;
-    }
-
-    private async getCognitoClient(): Promise<void> {
-        if (!this.cognitoClient) {
-            this.cognitoClient = new CognitoIdentityProviderClient({
-                region: this.PETSAFE_REGION,
-                credentials: () => Promise.resolve({
-                    accessKeyId: "",
-                    secretAccessKey: ""
-                })
-            });
         }
     }
 
