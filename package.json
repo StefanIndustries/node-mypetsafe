@@ -19,7 +19,8 @@
     "url": "https://github.com/StefanIndustries/node-mypetsafe.git"
   },
   "dependencies": {
-    "axios": "^1.9.0"
+    "axios": "^1.9.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.817.0"
   },
   "devDependencies": {
     "tsx": "^4.19.4",
