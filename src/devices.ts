@@ -1,5 +1,6 @@
 // devices.ts
 import {PetSafeClient} from "./mypetsafe-client";
+import {Message} from "./message";
 
 interface FeederData {
     thing_name: string;
@@ -64,16 +65,15 @@ export class DeviceSmartFeed {
         }
     }
 
-    async getMessagesSince(days: number = 7): Promise<any> {
+    async getMessagesSince(days: number = 7): Promise<Message[]> {
         const response = await this.client.apiGet(
             `${this.apiPath}messages?days=${days}`
         );
         return response.data;
     }
 
-    async getLastFeeding(): Promise<any | null> {
+    async getLastFeeding(): Promise<Message | null> {
         const messages = await this.getMessagesSince();
-        // @ts-ignore
         return messages.find(message => message.message_type === "FEED_DONE") || null;
     }
 
@@ -92,7 +92,7 @@ export class DeviceSmartFeed {
     async repeatFeed(): Promise<void> {
         const lastFeeding = await this.getLastFeeding();
         if (lastFeeding) {
-            await this.feed(lastFeeding.amount);
+            await this.feed(lastFeeding.payload.amount);
         }
     }
 
