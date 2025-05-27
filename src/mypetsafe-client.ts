@@ -51,6 +51,7 @@ export class PetSafeClient {
             idToken: this.idToken,
             accessToken: this.accessToken,
             refreshToken: this.refreshToken,
+            session: this.session,
         });
     }
 
@@ -141,15 +142,10 @@ export class PetSafeClient {
         );
 
         if (response.data) {
-            const { id_token, access_token, refresh_token, expires_in } = response.data;
-
-            this.idToken = id_token;
-            this.accessToken = access_token;
-            if (refresh_token) {
-                this.refreshToken = refresh_token;
-            }
-            this.tokenExpiresTime = Date.now() + expires_in * 1000;
-
+            this.idToken = response.data.AuthenticationResult?.IdToken;
+            this.accessToken = response.data.AuthenticationResult?.AccessToken;
+            this.refreshToken = response.data.AuthenticationResult?.RefreshToken ?? this.refreshToken;
+            this.tokenExpiresTime = Date.now() + response.data.AuthenticationResult?.ExpiresIn * 1000;
             this.emitTokenRefreshed();
         } else {
             throw new Error("Failed to refresh tokens");
@@ -163,10 +159,6 @@ export class PetSafeClient {
 
         if (!this.idToken) {
             throw new Error("Not authorized! Have you requested a token?");
-        }
-
-        if (Date.now() >= this.tokenExpiresTime - 100000) {
-            await this.refreshTokens();
         }
 
         headers['Authorization'] = this.idToken;
