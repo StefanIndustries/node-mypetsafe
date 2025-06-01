@@ -7,6 +7,7 @@ interface FeederData {
     id: string;
     battery_voltage: string;
     is_batteries_installed: boolean;
+    is_adapter_installed: boolean;
     settings: {
         paused: boolean;
         slow_feed: boolean;
@@ -214,6 +215,14 @@ export class DeviceSmartFeed {
 
     get isLocked(): boolean {
         return this.data.settings.child_lock;
+    }
+
+    get isBatteriesInstalled(): boolean {
+        return this.data.is_batteries_installed;
+    }
+
+    get isAdapterInstalled(): boolean {
+        return this.data.is_adapter_installed;
     }
 
     get friendlyName(): string {
