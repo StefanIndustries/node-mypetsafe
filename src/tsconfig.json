@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
     "declaration": true,
-    "outDir": "./lib",
+    "outDir": "../lib",
     "strict": true,
     "lib": ["es2019", "es2020.promise", "es2020.bigint", "es2020.string"],
     "module": "commonjs",
     "target": "es2019"
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "**/__tests__/*"]
+  "include": [
+    ""
+  ],
+  "exclude": [
+    "../node_modules", "**/__tests__/*"]
 }
