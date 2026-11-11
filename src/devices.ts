@@ -75,7 +75,13 @@ export class DeviceSmartFeed {
 
     async getLastFeeding(): Promise<Message | null> {
         const messages = await this.getMessagesSince();
-        return messages.find(message => message.message_type === "FEED_DONE") || null;
+        // The API returns messages oldest first, so pick the most recent feeding explicitly
+        // instead of relying on the response order.
+        return messages
+            .filter(message => message.message_type === "FEED_DONE")
+            .reduce<Message | null>((latest, message) =>
+                !latest || Date.parse(message.created_at) > Date.parse(latest.created_at) ? message : latest,
+                null);
     }
 
     async feed(amount: number = 1, slowFeed?: boolean, updateData: boolean = true): Promise<void> {
